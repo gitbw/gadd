@@ -1,0 +1,19 @@
+# Follow these steps to configure access to your Google calendar
+
+# Your Google username
+USERNAME=yourname@gmail.com
+
+# Go to Google calendar
+# From the twistie to the right of your calendar name, choose "Calendar Settings"
+# Click the XML button next to Private address
+# Put that URL in for $private_url below
+# !! Replace 'basic' at the end with 'full' !!
+PRIVATE_URL=https://www.google.com/calendar/feeds/big_bunch_of_letters_and_numbers%40group.calendar.google.com/private-bunch_more_letters_and_numbers/full
+
+# Now, get an application-specific password from Google
+# Go to https://www.google.com/settings/account
+# Choose "Manage Security" (over on the right)
+# Choose "Manage your application specific passwords" under 2-step verification
+# Scroll down to "Application-specific passwords"
+# Generate a new password and put it in for $password below.
+PASSWORD=bunchofletters

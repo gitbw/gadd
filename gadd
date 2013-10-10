@@ -1,0 +1,122 @@
+eval 'exec perl -S $0 ${1+"$@"}'
+            if 0;
+#Time-stamp: <2013-10-10 Thu 11:08:26 gadd>
+
+sub usage() {
+  print "\ngadd [-R] [-c <file>] time day title - content
+  [ -R        : do not set default reminder (30 minute)
+  [ -c <file> : use <file> instead of ~/.gaddrc
+
+";
+exit 1 unless $options{h};
+exit 0;
+};
+
+use DateTime;
+use Getopt::Std;
+my %options=();
+getopts('c:Rh',\%options);
+&usage if $options{h};
+
+use Net::Google::Calendar;
+
+my $private_url="";my $username="";my $password="";
+
+my $configfile=$options{c} || $ENV{"HOME"}."/.gaddrc";
+open (CF, "$configfile") || die "Can't open $configfile";
+while (<CF>) {
+  chomp;
+  if (/^PRIVATE_URL=(http\S+)/) {
+    $private_url=$1;
+  };
+  if (/^USERNAME=(\S+)/) {
+    $username=$1;
+  };
+  if (/^PASSWORD=(.*)/) {
+    $password=$1;
+  };
+};
+
+my %mon2num = qw(
+  jan 1  feb 2  mar 3  apr 4  may 5  jun 6
+  jul 7  aug 8  sep 9  oct 10 nov 11 dec 12
+);
+my $year=`date +'%Y'`;chomp $year;
+my $now=`date`;chomp $now;
+my $month,$day;
+my $hour=0;my $minute=0;my $ampm="a";
+
+my $time=shift @ARGV || &usage;
+if ($time = "noon") {
+  $hour=12;$minute=12;
+};
+if ($time =~ /(\d+):(\d+)$/) {
+  ($hour,$minute)=($1,$2);
+};
+if ($time =~ /(\d+)([ap])m$/) {
+  ($hour,$ampm)=($1,$2); $minute=0;
+  if ($ampm eq "p") {
+    $hour+=12;
+  };
+};
+if ($time =~ /(\d+):(\d+)([ap])m$/) {
+  ($hour,$minute,$ampm)=($1,$2,$3);
+  if ($ampm eq "p") {
+    $hour+=12;
+  };
+};
+
+my $dayin=shift @ARGV;
+if ($dayin =~ /(\d\d\d\d\d\d\d\d)/) {
+   ($year,$month,$day) = unpack 'A4A2A2', $dayin;
+};
+if ($dayin =~ /(\d+)[-\/](\d+)[-\/](\d+)/) { # dashes or slashes
+  ($year,$month,$day)=($1,$2,$3);
+};
+if ($dayin =~ /([A-Za-z]+)(\d+)$/ ) {
+  ($month,$day)=($1,$2);
+  $month=$mon2num{lc substr($month,0,3)};
+};
+if ($dayin =~ /(\D+)(\d+),(\d+)/ ) {
+  ($month,$day,$year)=($1,$2,$3);
+  $month=$mon2num{lc substr($month,0,3)};
+};
+  if ($dayin eq "today") {
+  ($tsec,$tmin,$thour,$day,$month,$year,$twday,$tyday,$tisdst) = localtime(time);
+  $month++;$year+=1900;
+};
+if ($dayin eq "tomorrow") {
+  my $tomorrow=time;$tomorrow+=86400;
+  ($tsec,$tmin,$thour,$day,$month,$year,$twday,$tyday,$tisdst) = localtime($tomorrow);
+  $month++;$year+=1900;
+};
+
+my $remainder="@ARGV" || &usage;
+my ($title,$content)=(split /\s*-\s*/, $remainder);chomp $title;
+$content=~s/^\s+//;
+
+my $cal=Net::Google::Calendar->new (url => $private_url);
+$cal->login($username, $password);
+my $starttime=DateTime->new(year=>$year,
+			    month=>$month,
+			    day=>$day,
+			    hour=>$hour,
+			    minute=>$minute,
+			    time_zone=>'US/Eastern',
+			   );
+my $entry=Net::Google::Calendar::Entry->new;
+$entry->title($title);
+$entry->content($content);
+$endtime=$starttime+DateTime::Duration->new( hours => 1 );
+$entry->when($starttime,$endtime);
+$entry->reminder('sms','minutes','30') unless $options{R};
+my $result=$cal->add_entry($entry);
+if (defined $result) {
+  my $id=$entry->id;$id=(split /full\//, $id)[1];
+  print "Added \"$title\" on $year-$month-$day id=$id\n";
+} else {
+  print "Add to calendar failed\n";
+};
+exit 0;
+
+
